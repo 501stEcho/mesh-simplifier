@@ -16,6 +16,19 @@ Mesh *OBJLoader::LoadMesh(std::string path)
 
     Mesh *LoadedMesh = new Mesh();
 
+    AllocateMeshData(LoadedMesh, file);
+    FillMeshData(LoadedMesh, file);
+
+
+    std::cout << "Number of triangles : " << LoadedMesh->triangleNb << std::endl;
+    std::cout << "Number of edges : " << LoadedMesh->edgeNb << std::endl;
+    std::cout << "Number of vertices : " << LoadedMesh->vertexNb << std::endl;
+
+    return LoadedMesh;
+}
+
+void OBJLoader::AllocateMeshData(Mesh *LoadedMesh, std::ifstream &file)
+{
     std::string line;
     while (std::getline(file, line)) {
         std::istringstream lineStream(line);
@@ -30,9 +43,13 @@ Mesh *OBJLoader::LoadMesh(std::string path)
 
     file.clear();
 
-    LoadedMesh->vertices = (vec3<float> *)malloc(sizeof(vec3<int>) * LoadedMesh->vertexNb);
-    LoadedMesh->triangles = (vec3<unsigned int> *)malloc(sizeof(vec3<int>) * LoadedMesh->triangleNb);
+    LoadedMesh->vertices = (VertexData *)malloc(sizeof(VertexData) * LoadedMesh->vertexNb);
+    LoadedMesh->triangles = (TriangleData *)malloc(sizeof(TriangleData) * LoadedMesh->triangleNb);
+}
 
+void OBJLoader::FillMeshData(Mesh *LoadedMesh, std::ifstream &file)
+{
+    std::string line;
     unsigned int currentVertexIndex = 0;
     unsigned int currentTriangleIndex = 0;
     unsigned int lineNb;
@@ -44,7 +61,7 @@ Mesh *OBJLoader::LoadMesh(std::string path)
 
         if (lineType.compare("v") == 0) {
             try {
-                LoadedMesh->vertices[currentVertexIndex++] = ParseVertexLine(lineStream);
+                ParseVertexLine(lineStream, LoadedMesh, currentVertexIndex);
             } catch (const InvalidLineFormatException &exc) {
                 std::cerr << "Error in line " << lineNb << " : " << exc.what() << std::endl;
             }
@@ -52,45 +69,76 @@ Mesh *OBJLoader::LoadMesh(std::string path)
         if (lineType.compare("f") == 0) {
             std::vector<vec3<unsigned int>> triangles;
             try {
-                ParseFaceLine(lineStream, triangles);
+                ParseFaceLine(lineStream, LoadedMesh, currentTriangleIndex);
             } catch (const InvalidLineFormatException &exc) {
                 std::cerr << "Error in line " << lineNb << " : " << exc.what() << std::endl;
             }
-            for (auto &it : triangles)
-                LoadedMesh->triangles[currentTriangleIndex++] = it;
         }
         lineNb++;
     }
 
-    for (auto &it : LoadedMesh->edgesDataMap) {
-        for (auto &it2 : it.second) {
-            LoadedMesh->edgesDataArray.insert(it2.second);
+    for (unsigned int i = 0; i < LoadedMesh->vertexNb; i++) {
+        for (auto &it : LoadedMesh->vertices[i].adjacentTriangles) {
+            TriangleData &triangle = LoadedMesh->triangles[it];
+            mat4<double> fundamental_error_quadric;
+            fundamental_error_quadric[0][0] = triangle.plane.x * triangle.plane.x;
+            fundamental_error_quadric[0][1] = triangle.plane.x * triangle.plane.y;
+            fundamental_error_quadric[0][2] = triangle.plane.x * triangle.plane.z;
+            fundamental_error_quadric[0][3] = triangle.plane.x * triangle.plane.w;
+            fundamental_error_quadric[1][0] = triangle.plane.y * triangle.plane.x;
+            fundamental_error_quadric[1][1] = triangle.plane.y * triangle.plane.y;
+            fundamental_error_quadric[1][2] = triangle.plane.y * triangle.plane.z;
+            fundamental_error_quadric[1][3] = triangle.plane.y * triangle.plane.w;
+            fundamental_error_quadric[2][0] = triangle.plane.z * triangle.plane.x;
+            fundamental_error_quadric[2][1] = triangle.plane.z * triangle.plane.y;
+            fundamental_error_quadric[2][2] = triangle.plane.z * triangle.plane.z;
+            fundamental_error_quadric[2][3] = triangle.plane.z * triangle.plane.w;
+            fundamental_error_quadric[3][0] = triangle.plane.w * triangle.plane.x;
+            fundamental_error_quadric[3][1] = triangle.plane.w * triangle.plane.y;
+            fundamental_error_quadric[3][2] = triangle.plane.w * triangle.plane.z;
+            fundamental_error_quadric[3][3] = triangle.plane.w * triangle.plane.w;
         }
     }
 
-    std::cout << "Number of triangles : " << LoadedMesh->triangleNb << std::endl;
-    std::cout << "Number of edges : " << LoadedMesh->edgeNb << std::endl;
-    std::cout << "Number of vertices : " << LoadedMesh->vertexNb << std::endl;
+    for (auto &it : LoadedMesh->edgesMap) {
+        for (auto &it2 : it.second) {
+            mat4<double> quadric = LoadedMesh->vertices[it2.second.v1].matrix + LoadedMesh->vertices[it2.second.v2].matrix;
+            mat4<double> temp_position(quadric);
 
-    return LoadedMesh;
+            for (unsigned int j = 0; j < 3; j++)
+                temp_position[3][j] = 0;
+            temp_position[3][3] = 1;
+            double deter = temp_position.getDeterminant();
+
+            vec4<double> optimal_position;
+            if (deter == 0) {
+                // Let's do that later
+            } else {
+                mat4<double> inverse;
+                temp_position.inverse(inverse);
+                optimal_position = inverse * vec4<double>(0,0,0,1);
+            }
+            it2.second.error = (optimal_position * quadric).dot(optimal_position);
+        }
+    }
 }
 
-vec3<float> OBJLoader::ParseVertexLine(std::istringstream &lineStream)
+void OBJLoader::ParseVertexLine(std::istringstream &lineStream, Mesh *result, unsigned int &availableVertexIndex)
 {
-    vec3<float> vertexCoordinates;
     unsigned int i = 0;
 
-    if (!(lineStream >> vertexCoordinates.x))
+    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.x))
         throw InvalidLineFormatException("");
-    if (!(lineStream >> vertexCoordinates.y))
+    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.y))
         throw InvalidLineFormatException("");
-    if (!(lineStream >> vertexCoordinates.z))
+    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.z))
         throw InvalidLineFormatException("");
-    
-    return vertexCoordinates;
+
+    result->vertices[availableVertexIndex++].isValid = true;
+
 }
 
-void OBJLoader::ParseFaceLine(std::istringstream &lineStream, std::vector<vec3<unsigned int>> &trianglesVertices)
+void OBJLoader::ParseFaceLine(std::istringstream &lineStream, Mesh *result, unsigned int &availableIndex)
 {
     std::vector<unsigned int> faceVerticesIndex;
     std::vector<unsigned int> faceVerticesTextureIndex;
@@ -99,9 +147,27 @@ void OBJLoader::ParseFaceLine(std::istringstream &lineStream, std::vector<vec3<u
 
     while (lineStream >> vertexIndexes)
         ExtractIndexes(vertexIndexes, faceVerticesIndex, faceVerticesTextureIndex, faceVerticesNormalIndex);
-    
+
     for (unsigned int i = 1; i + 1 < faceVerticesIndex.size(); i++) {
-        trianglesVertices.push_back(vec3<unsigned int>(faceVerticesIndex[0], faceVerticesIndex[i], faceVerticesIndex[i + 1]));
+        result->triangles[availableIndex].verticesIndex.x = faceVerticesIndex[0];
+        result->triangles[availableIndex].verticesIndex.y = faceVerticesIndex[i];
+        result->triangles[availableIndex].verticesIndex.z = faceVerticesIndex[i + 1];
+        result->triangles[availableIndex].plane = ComputePlaneEquation(result->vertices, result->triangles[availableIndex].verticesIndex);
+        result->triangles[availableIndex].isValid = true;
+
+        result->vertices[faceVerticesIndex[0]].adjacentTriangles.insert(availableIndex);
+        result->vertices[faceVerticesIndex[0]].adjacentVertices.insert(faceVerticesIndex[i]);
+        result->vertices[faceVerticesIndex[0]].adjacentVertices.insert(faceVerticesIndex[i + 1]);
+
+        result->vertices[faceVerticesIndex[i]].adjacentTriangles.insert(availableIndex);
+        result->vertices[faceVerticesIndex[i]].adjacentVertices.insert(faceVerticesIndex[0]);
+        result->vertices[faceVerticesIndex[i]].adjacentVertices.insert(faceVerticesIndex[i + 1]);
+
+        result->vertices[faceVerticesIndex[i + 1]].adjacentTriangles.insert(availableIndex);
+        result->vertices[faceVerticesIndex[i + 1]].adjacentVertices.insert(faceVerticesIndex[0]);
+        result->vertices[faceVerticesIndex[i + 1]].adjacentVertices.insert(faceVerticesIndex[i]);
+        
+        availableIndex++;
     }
 }
 
@@ -200,20 +266,27 @@ void OBJLoader::AddEdge(Mesh *result, unsigned int v1, unsigned int v2)
 {
     if (!result)
         throw LoadingFailedException("Loaded mesh pointer is not allocated");
-
-    if (result->edgesDataMap.find(v1) == result->edgesDataMap.end())
-        result->edgesDataMap[v1] = std::unordered_map<unsigned int, EdgeData *>();
-    if (result->edgesDataMap.find(v2) == result->edgesDataMap.end())
-        result->edgesDataMap[v2] = std::unordered_map<unsigned int, EdgeData *>();
     
-    EdgeData *newEdge = new EdgeData();
+    unsigned int edge_v1 = std::min(v1, v2);
+    unsigned int edge_v2 = std::max(v1, v2);
 
-    if (result->edgesDataMap[v1].find(v2) == result->edgesDataMap[v1].end()) {
-        result->edgesDataMap[v1][v2] = newEdge;
+    if (result->edgesMap.find(edge_v1) == result->edgesMap.end())
+        result->edgesMap[edge_v1] = std::unordered_map<unsigned int, Edge>();
+    
+    if (result->edgesMap[edge_v1].find(edge_v2) == result->edgesMap[edge_v1].end()) {
+        result->edgesMap[edge_v1][edge_v2] = Edge();
         result->edgeNb++;
     }
-    if (result->edgesDataMap[v2].find(v1) == result->edgesDataMap[v2].end()) {
-        result->edgesDataMap[v2][v1] = newEdge;
-        result->edgeNb++;
-    }
+}
+
+vec4<double> OBJLoader::ComputePlaneEquation(VertexData *vertexArray, vec3<unsigned int> &verticesIndex)
+{
+    vec3<double> u = vertexArray[verticesIndex.x].coordinates - vertexArray[verticesIndex.z].coordinates;
+    vec3<double> v = vertexArray[verticesIndex.y].coordinates - vertexArray[verticesIndex.z].coordinates;
+
+    vec3<double> planeNormal = u.cross_product(v);
+    double d = -1 * (planeNormal.x * vertexArray[verticesIndex.x].coordinates.x
+        + planeNormal.y * vertexArray[verticesIndex.x].coordinates.y
+        + planeNormal.z * vertexArray[verticesIndex.x].coordinates.z);
+    return vec4<double>(planeNormal.x, planeNormal.y, planeNormal.z, d);
 }

@@ -35,8 +35,10 @@ class OBJLoader
         static Mesh *LoadMesh(std::string path);
     
     protected:
-        static vec3<float> ParseVertexLine(std::istringstream &lineStream);
-        static void ParseFaceLine(std::istringstream &lineStream, std::vector<vec3<unsigned int>> &trianglesVertices);
+        static void AllocateMeshData(Mesh *result, std::ifstream &file);
+        static void FillMeshData(Mesh *result, std::ifstream &file);
+        static void ParseVertexLine(std::istringstream &lineStream, Mesh *result, unsigned int &availableVertexIndex);
+        static void ParseFaceLine(std::istringstream &lineStream, Mesh *result, unsigned int &availableIndex);
         static void CountTriangleAndEdges(std::istringstream &lineStream, Mesh *result);
     
     private:
@@ -44,4 +46,5 @@ class OBJLoader
         static void ExtractIndexes(std::string line, std::vector<unsigned int> &faceVerticesIndex,
             std::vector<unsigned int> &faceVerticesTextureIndex, std::vector<unsigned int> &faceVerticesNormalIndex);
         static void AddEdge(Mesh *result, unsigned int v1, unsigned int v2);
+        static vec4<double> ComputePlaneEquation(VertexData *vertexArray, vec3<unsigned int> &verticesIndex);
 };
