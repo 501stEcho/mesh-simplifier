@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 #include <iostream>
+#include <memory>
 #include <cmath>
 #include <unordered_set>
 
@@ -296,6 +297,12 @@ struct TriangleData
     bool isValid = false;
 };
 
+struct CompareEdgePtr {
+    bool operator()(const std::shared_ptr<Edge>& lhs, const std::shared_ptr<Edge>& rhs) const {
+        return *lhs < *rhs;
+    }
+};
+
 struct Mesh
 {
     Mesh() = default;
@@ -307,8 +314,10 @@ struct Mesh
 
     VertexData *vertices;
     TriangleData *triangles;
-    std::unordered_map<unsigned int, std::unordered_map<unsigned int, Edge>> edgesMap;
+    std::unordered_map<unsigned int, std::unordered_map<unsigned int, std::shared_ptr<Edge>>> edgesMap;
 
     // edges
-    std::priority_queue<Edge *> edgesPriorityQueue;
+    std::priority_queue<std::shared_ptr<Edge>, 
+                        std::vector<std::shared_ptr<Edge>>, 
+                        CompareEdgePtr> edgesPriorityQueue;
 };

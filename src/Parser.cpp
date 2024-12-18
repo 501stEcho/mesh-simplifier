@@ -19,7 +19,6 @@ Mesh *OBJLoader::LoadMesh(std::string path)
     AllocateMeshData(LoadedMesh, file);
     FillMeshData(LoadedMesh, file);
 
-
     std::cout << "Number of triangles : " << LoadedMesh->triangleNb << std::endl;
     std::cout << "Number of edges : " << LoadedMesh->edgeNb << std::endl;
     std::cout << "Number of vertices : " << LoadedMesh->vertexNb << std::endl;
@@ -102,7 +101,7 @@ void OBJLoader::FillMeshData(Mesh *LoadedMesh, std::ifstream &file)
 
     for (auto &it : LoadedMesh->edgesMap) {
         for (auto &it2 : it.second) {
-            mat4<double> quadric = LoadedMesh->vertices[it2.second.v1].matrix + LoadedMesh->vertices[it2.second.v2].matrix;
+            mat4<double> quadric = LoadedMesh->vertices[it2.second->v1].matrix + LoadedMesh->vertices[it2.second->v2].matrix;
             mat4<double> temp_position(quadric);
 
             for (unsigned int j = 0; j < 3; j++)
@@ -118,7 +117,8 @@ void OBJLoader::FillMeshData(Mesh *LoadedMesh, std::ifstream &file)
                 temp_position.inverse(inverse);
                 optimal_position = inverse * vec4<double>(0,0,0,1);
             }
-            it2.second.error = (optimal_position * quadric).dot(optimal_position);
+            it2.second->error = (optimal_position * quadric).dot(optimal_position);
+            LoadedMesh->edgesPriorityQueue.push(it2.second);
         }
     }
 }
@@ -271,10 +271,10 @@ void OBJLoader::AddEdge(Mesh *result, unsigned int v1, unsigned int v2)
     unsigned int edge_v2 = std::max(v1, v2);
 
     if (result->edgesMap.find(edge_v1) == result->edgesMap.end())
-        result->edgesMap[edge_v1] = std::unordered_map<unsigned int, Edge>();
+        result->edgesMap[edge_v1] = std::unordered_map<unsigned int, std::shared_ptr<Edge>>();
     
     if (result->edgesMap[edge_v1].find(edge_v2) == result->edgesMap[edge_v1].end()) {
-        result->edgesMap[edge_v1][edge_v2] = Edge();
+        result->edgesMap[edge_v1][edge_v2] = std::make_shared<Edge>();
         result->edgeNb++;
     }
 }
