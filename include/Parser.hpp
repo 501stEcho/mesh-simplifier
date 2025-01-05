@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "Types.hpp"
+#include "Tools.hpp"
 
 class InvalidLineFormatException : public std::exception
 {
@@ -45,6 +46,4 @@ class OBJLoader
         static void ExtractFirstIndex(std::string line, unsigned int &vertexIndex);
         static void ExtractIndexes(std::string line, std::vector<unsigned int> &faceVerticesIndex,
             std::vector<unsigned int> &faceVerticesTextureIndex, std::vector<unsigned int> &faceVerticesNormalIndex);
-        static void AddEdge(Mesh *result, unsigned int v1, unsigned int v2);
-        static vec4<double> ComputePlaneEquation(VertexData *vertexArray, vec3<unsigned int> &verticesIndex);
 };

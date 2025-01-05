@@ -7,6 +7,8 @@
 #include <memory>
 #include <cmath>
 #include <unordered_set>
+#include "Bitmap.hpp"
+#include <iomanip>
 
 class InvalidMatrixIndexException : public std::exception
 {
@@ -30,9 +32,33 @@ struct vec3
     {
         return vec3<T>(x - other.x, y - other.y, z - other.z);
     }
+
+    vec3<T> operator*(T &&coef)
+    {
+        return vec3<T>(x * coef, y * coef, z * coef);
+    }
+
     vec3<T> cross_product(vec3<T> &other)
     {
         return vec3<T>(y * other.z - z * other.y, -1 * (x * other.z - z * other.x), x * other.y - y * other.x);
+    }
+
+    T dot_product(vec3<T> &other)
+    {
+        return x * other.x + y * other.y + z * other.z;
+    }
+
+    T length_squared() const {
+        return x * x + y * y + z * z;
+    }
+
+    vec3<T> &normalize(void)
+    {
+        T magnitude = sqrt(x * x + y * y + z * z);
+        x /= magnitude;
+        y /= magnitude;
+        z /= magnitude;
+        return *this;
     }
 
     T x;
@@ -45,12 +71,23 @@ struct vec4
 {
     vec4() = default;
     vec4(T xx, T yy, T zz, T ww) : x(xx), y(yy), z(zz), w(ww) {};
+    vec4(vec3<T> v, T ww) : x(v.x), y(v.y), z(v.z), w(ww) {};
     vec4<T> operator+(vec4<T> &&other)
     {
         return vec4<T>(x + other.x, y + other.y, z + other.z, w + other.w);
     }
 
+    vec4<T> operator-(vec4<T> &other)
+    {
+        return vec4<T>(x - other.x, y - other.y, z - other.z, w - other.w);
+    }
+
     double dot(vec4<T> &other)
+    {
+        return (x * other.x + y * other.y + z * other.z);
+    }
+
+    double dot(vec4<T> &&other)
     {
         return (x * other.x + y * other.y + z * other.z);
     }
@@ -72,11 +109,35 @@ struct vec4
         return *this;
     }
 
+    vec4<T> &normalize(void)
+    {
+        T magnitude = sqrt(x * x + y * y + z * z + w * w);
+        x /= magnitude;
+        y /= magnitude;
+        z /= magnitude;
+        w /= magnitude;
+        return *this;
+    }
+
     T x;
     T y;
     T z;
     T w;
 };
+
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, vec4<T> &vector)
+{
+    stream << vector.x << " " << vector.y << " " << vector.z << " " << vector.w << std::endl;
+    return stream;
+}
+
+template <typename T>
+vec4<T> operator*(T coef, vec4<T> &other)
+{
+    return vec4<T>(other.x * coef, other.y * coef, other.z * coef, other.w * coef);
+}
 
 template <typename T>
 struct mat3
@@ -112,30 +173,6 @@ struct mat3
                  data[0][2]* (data[1][0] * data[2][1] - data[1][1] * data[2][0]);
     }
 
-    bool invert(mat3<T>& inverse) {
-        double det = getDeterminant();
-
-        if (det == 0) {
-            return false;
-        }
-
-        double invDet = 1.0 / det;
-
-        inverse[0][0] =  (data[1][1] * data[2][2] - data[1][2] * data[2][1]) * invDet;
-        inverse[0][1] = -(data[0][1] * data[2][2] - data[0][2] * data[2][1]) * invDet;
-        inverse[0][2] =  (data[0][1] * data[1][2] - data[0][2] * data[1][1]) * invDet;
-
-        inverse[1][0] = -(data[1][0] * data[2][2] - data[1][2] * data[2][0]) * invDet;
-        inverse[1][1] =  (data[0][0] * data[2][2] - data[0][2] * data[2][0]) * invDet;
-        inverse[1][2] = -(data[0][0] * data[1][2] - data[0][2] * data[1][0]) * invDet;
-
-        inverse[2][0] =  (data[1][0] * data[2][1] - data[1][1] * data[2][0]) * invDet;
-        inverse[2][1] = -(data[0][0] * data[2][1] - data[0][1] * data[2][0]) * invDet;
-        inverse[2][2] =  (data[0][0] * data[1][1] - data[0][1] * data[1][0]) * invDet;
-
-        return true;
-    }
-
     T data[3][3];
 };
 
@@ -144,6 +181,38 @@ struct mat4
 {
     mat4()
     {
+        for (unsigned int i = 0; i < 4; i++) {
+            for (unsigned int j = 0; j < 4; j++)
+                data[i][j] = 0;
+        }
+    }
+
+    mat4(T a, T b, T c, T d, T e, T f, T g, T h, T i, T j, T k, T l, T m, T n, T o, T p)
+    {
+        data[0][0] = a;
+        data[0][1] = b;
+        data[0][2] = c;
+        data[0][3] = d;
+        data[1][0] = e;
+        data[1][1] = f;
+        data[1][2] = g;
+        data[1][3] = h;
+        data[2][0] = i;
+        data[2][1] = j;
+        data[2][2] = k;
+        data[2][3] = l;
+        data[3][0] = m;
+        data[3][1] = n;
+        data[3][2] = o;
+        data[3][3] = p;
+    }
+
+    mat4(mat4<T> &other)
+    {
+        for (unsigned int i = 0; i < 4; i++) {
+            for (unsigned int j = 0; j < 4; j++)
+                data[i][j] = other[i][j];
+        }
     }
 
     T *operator[](unsigned int index)
@@ -166,7 +235,31 @@ struct mat4
         return result;
     }
 
-    vec4<T> operator*(vec4<T> &vec)
+    mat4<T> operator+(mat4<T> &&other)
+    {
+        mat4<T> result;
+
+        for (unsigned int i = 0; i < 4; i++) {
+            for (unsigned int j = 0; j < 4; j++) {
+                result[i][j] = data[i][j] + other.data[i][j];
+            }
+        }
+        return result;
+    }
+
+    mat4<T> operator*(T &&coef)
+    {
+        mat4<T> result;
+
+        for (unsigned int i = 0; i < 4; i++) {
+            for (unsigned int j = 0; j < 4; j++) {
+                result[i][j] = data[i][j] * coef;
+            }
+        }
+        return result;
+    }
+
+    vec4<T> operator*(const vec4<T> &vec) const
     {
         vec4<T> result;
 
@@ -178,7 +271,7 @@ struct mat4
         return result;
     }
 
-    vec4<T> operator*(vec4<T> &&vec)
+    vec4<T> operator*(const vec4<T> &&vec) const
     {
         vec4<T> result;
 
@@ -190,7 +283,7 @@ struct mat4
         return result;
     }
 
-    void getCofactor(mat3<T> temp, int p, int q)
+    void getCofactor(mat3<T> &temp, int p, int q)
     {
         int row = 0, col = 0;
         for (int i = 0; i < 4; i++) {
@@ -206,19 +299,29 @@ struct mat4
         }
     }
 
-    double getDeterminant(void)
+    void getTranspose(mat4<T> &transpose)
     {
-        double det = 0;
-        mat3<double> temp;
-        int sign = 1;
-
-        for (int j = 0; j < 4; j++) {
-            getCofactor(temp, 0, j);
-            det += sign * data[0][j] * temp.getDeterminant();
-            sign = -sign;
+        for(size_t i = 0; i < 4; i++) {
+            for(size_t j = 0; j < 4; j++) {
+                transpose[j][i] = data[i][j];
+            }
         }
+    }
 
-        return det;
+    double getDeterminant() {
+        return 
+            data[0][0] * (data[1][1] * (data[2][2] * data[3][3] - data[2][3] * data[3][2])
+                          - data[1][2] * (data[2][1] * data[3][3] - data[2][3] * data[3][1])
+                          + data[1][3] * (data[2][1] * data[3][2] - data[2][2] * data[3][1]))
+          - data[0][1] * (data[1][0] * (data[2][2] * data[3][3] - data[2][3] * data[3][2])
+                          - data[1][2] * (data[2][0] * data[3][3] - data[2][3] * data[3][0])
+                          + data[1][3] * (data[2][0] * data[3][2] - data[2][2] * data[3][0]))
+          + data[0][2] * (data[1][0] * (data[2][1] * data[3][3] - data[2][3] * data[3][1])
+                          - data[1][1] * (data[2][0] * data[3][3] - data[2][3] * data[3][0])
+                          + data[1][3] * (data[2][0] * data[3][1] - data[2][1] * data[3][0]))
+          - data[0][3] * (data[1][0] * (data[2][1] * data[3][2] - data[2][2] * data[3][1])
+                          - data[1][1] * (data[2][0] * data[3][2] - data[2][2] * data[3][0])
+                          + data[1][2] * (data[2][0] * data[3][1] - data[2][1] * data[3][0]));
     }
 
     void adjugate(mat4<T> &adj)
@@ -236,88 +339,192 @@ struct mat4
         }
     }
 
-    bool inverse(mat4<T> &inv) {
-        double det = getDeterminant();
-
-        if (fabs(det) < 1e-9) {
-            std::cerr << "Matrix is singular and cannot be inverted." << std::endl;
-            return false;
+    bool getInverse(mat4<T> &inverse)
+    {
+        double augmented[4][8]; // Augmented matrix (original matrix + identity)
+    
+        // Initialize the augmented matrix
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                augmented[i][j] = data[i][j];
+                augmented[i][j + 4] = (i == j) ? 1.0 : 0.0; // Identity matrix
+            }
         }
 
-        mat4<double> adj;
-        adjugate(adj);
+        // Perform Gaussian elimination
+        for (int i = 0; i < 4; ++i) {
+            // Find the pivot (largest element in column i)
+            double maxEl = fabs(augmented[i][i]);
+            int row = i;
+            for (int k = i + 1; k < 4; ++k) {
+                if (fabs(augmented[k][i]) > maxEl) {
+                    maxEl = fabs(augmented[k][i]);
+                    row = k;
+                }
+            }
 
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                inv[i][j] = adj[i][j] / det;
+            // Swap rows if necessary
+            if (i != row) {
+                for (int j = 0; j < 8; ++j) {
+                    std::swap(augmented[i][j], augmented[row][j]);
+                }
+            }
+
+            // Make the pivot element 1 and eliminate below
+            double pivot = augmented[i][i];
+            if (pivot == 0) {
+                return false;
+            }
+
+            for (int j = 0; j < 8; ++j) {
+                augmented[i][j] /= pivot;
+            }
+
+            // Eliminate other elements in the column
+            for (int k = 0; k < 4; ++k) {
+                if (k != i) {
+                    double factor = augmented[k][i];
+                    for (int j = 0; j < 8; ++j) {
+                        augmented[k][j] -= augmented[i][j] * factor;
+                    }
+                }
+            }
+        }
+
+        // Extract the inverse matrix from the augmented matrix
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                inverse[i][j] = augmented[i][j + 4];
             }
         }
 
         return true;
     }
 
+    static mat4<T> identity()
+    {
+        mat4<T> result;
+        result[0][0] = T(1);
+        result[1][1] = T(1);
+        result[2][2] = T(1);
+        result[3][3] = T(1);
+        return result;
+    }
+
     T data[4][4];
 };
 
 template <typename T>
-vec4<T> operator*(vec4<T> &vec, mat4<T> matrix)
+std::ostream &operator<<(std::ostream &stream, mat4<T> &matrix)
+{
+    for (unsigned int i = 0; i < 4; i++) {
+        for (unsigned int j = 0; j < 4; j++)
+            stream << matrix[i][j] << " ";
+        stream << std::endl;
+    }
+    return stream;
+}
+
+template <typename T>
+vec4<T> operator*(const vec4<T> &vec, const mat4<T> &matrix)
 {
     vec4<T> result;
-    result.x = vec.x * matrix[0][0] + vec.y * matrix[1][0] + vec.z * matrix[2][0] + vec.w * matrix[3][0];
-    result.y = vec.x * matrix[0][1] + vec.y * matrix[1][1] + vec.z * matrix[2][1] + vec.w * matrix[3][1];
-    result.z = vec.x * matrix[0][2] + vec.y * matrix[1][2] + vec.z * matrix[2][2] + vec.w * matrix[3][2];
-    result.w = vec.x * matrix[0][3] + vec.y * matrix[1][3] + vec.z * matrix[2][3] + vec.w * matrix[3][3];
+    result.x = vec.x * matrix.data[0][0] + vec.y * matrix.data[1][0] + vec.z * matrix.data[2][0] + vec.w * matrix.data[3][0];
+    result.y = vec.x * matrix.data[0][1] + vec.y * matrix.data[1][1] + vec.z * matrix.data[2][1] + vec.w * matrix.data[3][1];
+    result.z = vec.x * matrix.data[0][2] + vec.y * matrix.data[1][2] + vec.z * matrix.data[2][2] + vec.w * matrix.data[3][2];
+    result.w = vec.x * matrix.data[0][3] + vec.y * matrix.data[1][3] + vec.z * matrix.data[2][3] + vec.w * matrix.data[3][3];
+    return result;
+}
+
+template <typename T>
+vec4<T> operator*(const mat4<T> &matrix, const vec4<T> &vec)
+{
+    vec4<T> result;
+
+    result.x = matrix.data[0][0] * vec.x + matrix.data[0][1] * vec.y + matrix.data[0][2] * vec.z + matrix.data[0][3] * vec.w;
+    result.y = matrix.data[1][0] * vec.x + matrix.data[1][1] * vec.y + matrix.data[1][2] * vec.z + matrix.data[1][3] * vec.w;
+    result.z = matrix.data[2][0] * vec.x + matrix.data[2][1] * vec.y + matrix.data[2][2] * vec.z + matrix.data[2][3] * vec.w;
+    result.w = matrix.data[3][0] * vec.x + matrix.data[3][1] * vec.y + matrix.data[3][2] * vec.z + matrix.data[3][3] * vec.w;
+
     return result;
 }
 
 struct VertexData
 {
+    VertexData()
+    {
+        adjacentTriangles = std::unordered_set<unsigned int>();
+        adjacentVertices = std::unordered_set<unsigned int>();
+    }
+
+    VertexData(const VertexData &other)
+    {
+        adjacentTriangles = other.adjacentTriangles;
+        adjacentVertices = other.adjacentVertices;
+        matrix = other.matrix;
+        coordinates = other.coordinates;
+        isValid = other.isValid;
+    }
+
     std::unordered_set<unsigned int> adjacentTriangles;
     std::unordered_set<unsigned int> adjacentVertices;
     mat4<double> matrix;
     vec3<double> coordinates;
-    bool isValid = false;
+    bool isValid = true;
 };
 
 struct Edge
 {
+    Edge() = default;
+    Edge(unsigned int vertex_1, unsigned int vertex_2) : v1(vertex_1), v2(vertex_2), error(0) {};
     unsigned int v1;
     unsigned int v2;
     double error;
+    bool isValid = true;
 
     bool operator<(const Edge& other) const {
-        return error > other.error;
+        const double epsilon = 1e-9;
+        if (std::fabs(error - other.error) > epsilon)
+            return error < other.error;
+
+        if (v1 != other.v1)
+            return v1 < other.v1;
+        return v2 < other.v2;
     }
 };
+
+
 
 struct TriangleData
 {
     vec3<unsigned int> verticesIndex;
     vec4<double> plane;
-    bool isValid = false;
-};
-
-struct CompareEdgePtr {
-    bool operator()(const std::shared_ptr<Edge>& lhs, const std::shared_ptr<Edge>& rhs) const {
-        return *lhs < *rhs;
-    }
+    bool isValid = true;
 };
 
 struct Mesh
 {
-    Mesh() = default;
+    Mesh()
+    {
+        activeVertices = Bitmap(true);
+        activeTriangles = Bitmap(true);
+        triangleNb = 0;
+        vertexNb = 0;
+        edgeNb = 0;
+    }
 
     // counts
     unsigned int vertexNb;
     unsigned int triangleNb;
     unsigned int edgeNb;
 
-    VertexData *vertices;
-    TriangleData *triangles;
-    std::unordered_map<unsigned int, std::unordered_map<unsigned int, std::shared_ptr<Edge>>> edgesMap;
+    std::vector<VertexData> vertices;
+    Bitmap activeVertices;
+    std::vector<TriangleData> triangles;
+    Bitmap activeTriangles;
+    std::unordered_map<unsigned int, std::unordered_map<unsigned int, Edge>> edgesMap;
 
-    // edges
-    std::priority_queue<std::shared_ptr<Edge>, 
-                        std::vector<std::shared_ptr<Edge>>, 
-                        CompareEdgePtr> edgesPriorityQueue;
+    // Buffer size
+    unsigned int verticesBufferSize;
+    unsigned int trianglesBufferSize;
 };
