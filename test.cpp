@@ -112,14 +112,32 @@ void test_edge_optimal_location()
     mesh->vertices.push_back(v1);
     mesh->vertices.push_back(v2);
 
-    Edge edge(0, 1);
-    double error = ComputeEdgeOptimalPosition(optimal_position, edge, mesh);
-    std::cout << "Error : " << error << std::endl;
+    EdgeIndex edge(0, 1);
+    mesh->edgesMap[0][1] = EdgeData();
+    ComputeEdgeOptimalPosition(optimal_position, edge, mesh);
+    // std::cout << "Error : " << error << std::endl;
 
     mesh->vertices[0].matrix = mat4<double>();
     mesh->vertices[1].matrix = mat4<double>();
-    error = ComputeEdgeOptimalPosition(optimal_position, edge, mesh);
-    std::cout << "Error : " << error << std::endl;
+    ComputeEdgeOptimalPosition(optimal_position, edge, mesh);
+    // std::cout << "Error : " << error << std::endl;
+}
+
+void test_mesh_functions()
+{
+    Mesh *mesh = Mesh::getSingleInstance();
+    std::cout << "Test " << testId++ << ": ";
+
+    mesh->vertexNb = 50;
+    mesh->triangleNb = 150;
+
+    Mesh *mesh2 = Mesh::getSingleInstance();
+    if (mesh->vertexNb != mesh2->vertexNb || mesh->triangleNb != mesh2->triangleNb) {
+        std::cout << "FAILED" << std::endl;
+        std::cout << "Mesh 1 : " << mesh->vertexNb << " | " << mesh->triangleNb << std::endl;
+        std::cout << "Mesh 2 : " << mesh2->vertexNb << " | " << mesh2->triangleNb << std::endl;
+    } else
+        std::cout << "SUCCESS" << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -127,4 +145,5 @@ int main(int argc, char** argv)
     test_matrix_functions();
     test_triangle_functions();
     test_edge_optimal_location();
+    test_mesh_functions();
 }

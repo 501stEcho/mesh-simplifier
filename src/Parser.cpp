@@ -14,7 +14,7 @@ Mesh *OBJLoader::LoadMesh(std::string path)
         return nullptr;
     }
 
-    Mesh *LoadedMesh = new Mesh();
+    Mesh *LoadedMesh = Mesh::getSingleInstance();
 
     AllocateMeshData(LoadedMesh, file);
     FillMeshData(LoadedMesh, file);

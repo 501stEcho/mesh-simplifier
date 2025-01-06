@@ -2,69 +2,105 @@
 #include "Tools.hpp"
 #include <iomanip>
 
-std::set<Edge *, CompareEdgePtr> sortedEdges;
+std::set<EdgeIndex> sortedEdges;
 std::unordered_map<unsigned int, unsigned int> parent;
 
 void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
 {
     GetSortedEdgeQueue(mesh, sortedEdges);
 
-
     for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1;) {
-        unsigned int v1_parent = FindLatestParentVertex((*sortedEdges.begin())->v1, parent);
-        unsigned int v2_parent = FindLatestParentVertex((*sortedEdges.begin())->v2, parent);
-        Edge *temp_edge = *sortedEdges.begin();
+        EdgeIndex index = *sortedEdges.begin();
         sortedEdges.erase(sortedEdges.begin());
 
-        if (!temp_edge->isValid || v1_parent == v2_parent || !mesh->activeVertices.isActive(v1_parent) || !mesh->activeVertices.isActive(v2_parent))
+        if (!index.isValid || index.v1 == index.v2 || !mesh->activeVertices.isActive(index.v1)
+            || !mesh->activeVertices.isActive(index.v2) || mesh->edgesMap[index.v1].find(index.v2) == mesh->edgesMap[index.v1].end()) {
+            std::cerr << "Could not find " << index.v1 << "-" << index.v2 << std::endl;
             continue;
-
-        unsigned int v1 = std::min(v1_parent, v2_parent);
-        unsigned int v2 = std::max(v1_parent, v2_parent);
-        Edge &edge = mesh->edgesMap[v1][v2];
-        std::cout << "Iteration " << iteration << " : " << v1 << "-" << v2 << " (" << edge.error << ")" << std::endl;
-
-        if (mesh->edgesMap[v1].find(v2) == mesh->edgesMap[v1].end())
-            std::cerr << "Could not find " << v1 << "-" << v2 << std::endl;
-    
-        mat4<double> quadric = mesh->vertices[v1].matrix + mesh->vertices[v2].matrix;
-        vec4<double> optimal_position;
-        ComputeEdgeOptimalPosition(optimal_position, edge, mesh);
-
-        mesh->vertices[v1].coordinates.x = optimal_position.x;
-        mesh->vertices[v1].coordinates.y = optimal_position.y;
-        mesh->vertices[v1].coordinates.z = optimal_position.z;
-
-        for (auto &it : mesh->vertices[v2].adjacentTriangles) {
-            if (mesh->activeTriangles.isActive(it))
-               UpdateAdjacentTriangle(it, edge, mesh, optimal_position);
         }
 
-        UpdateAdjacentVertices(edge, mesh, sortedEdges);
-        DeleteVertex(v2 , mesh);
-        mesh->edgesMap[v1].erase(v2);
-        parent[v2] = v1;
+        EdgeData &data = mesh->edgesMap[index.v1][index.v2];
+        std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << " (" << data.error << ")" << std::endl;
+
+        // Assign new position to vertex 1
+        vec4<double> optimal_position;
+        ComputeEdgeOptimalPosition(optimal_position, index, mesh);
+        mesh->vertices[index.v1].coordinates.x = optimal_position.x;
+        mesh->vertices[index.v1].coordinates.y = optimal_position.y;
+        mesh->vertices[index.v1].coordinates.z = optimal_position.z;
+
+        // Replace v2 occurences in adjacent triangles by v1
+        for (auto &it : mesh->vertices[index.v2].adjacentTriangles) {
+            if (mesh->activeTriangles.isActive(it))
+               UpdateAdjacentTriangle(it, index, mesh, optimal_position);
+        }
+
+        // Add nodes between v1 and v2's adjacent vertices
+        UpdateAdjacentVertices(index, mesh, sortedEdges);
+
+        // Delete v2
+        DeleteVertex(index.v2, mesh);
+        mesh->edgesMap[index.v1].erase(index.v2);
         iteration++;
     }
+
+    // for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1;) {
+    //     unsigned int v1_parent = FindLatestParentVertex(sortedEdges.begin()->v1, parent);
+    //     unsigned int v2_parent = FindLatestParentVertex(sortedEdges.begin()->v2, parent);
+    //     EdgeIndex index = *sortedEdges.begin();
+    //     EdgeIndex index_parent = EdgeIndex(v1_parent, v2_parent);
+    //     sortedEdges.erase(sortedEdges.begin());
+
+    //     if (!index.isValid || v1_parent == v2_parent || !mesh->activeVertices.isActive(v1_parent) || !mesh->activeVertices.isActive(v2_parent))
+    //         continue;
+
+    //     unsigned int v1 = std::min(v1_parent, v2_parent);
+    //     unsigned int v2 = std::max(v1_parent, v2_parent);
+    //     EdgeData &data = mesh->edgesMap[v1][v2];
+    //     std::cout << "Iteration " << iteration << " : " << v1 << "-" << v2 << " (" << data.error << ")" << std::endl;
+
+    //     if (mesh->edgesMap[v1].find(v2) == mesh->edgesMap[v1].end())
+    //         std::cerr << "Could not find " << v1 << "-" << v2 << std::endl;
+    
+    //     mat4<double> quadric = mesh->vertices[v1].matrix + mesh->vertices[v2].matrix;
+    //     vec4<double> optimal_position;
+    //     ComputeEdgeOptimalPosition(optimal_position, index_parent, mesh);
+
+    //     mesh->vertices[v1].coordinates.x = optimal_position.x;
+    //     mesh->vertices[v1].coordinates.y = optimal_position.y;
+    //     mesh->vertices[v1].coordinates.z = optimal_position.z;
+
+    //     for (auto &it : mesh->vertices[v2].adjacentTriangles) {
+    //         if (mesh->activeTriangles.isActive(it))
+    //            UpdateAdjacentTriangle(it, index_parent, mesh, optimal_position);
+    //     }
+
+    //     UpdateAdjacentVertices(index_parent, mesh, sortedEdges);
+    //     DeleteVertex(v2 , mesh);
+    //     mesh->edgesMap[v1].erase(v2);
+    //     parent[v2] = v1;
+    //     iteration++;
+    // }
 }
  
-void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<Edge *, CompareEdgePtr> &result)
+void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
 {
     for (auto &it : mesh->edgesMap) {
         for (auto &it2 : it.second) {
-            mat4<double> quadric = mesh->vertices[it2.second.v1].matrix + mesh->vertices[it2.second.v2].matrix;
+            EdgeIndex index(it.first, it2.first);
+            mat4<double> quadric = mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix;
             vec4<double> optimal_position;
-            it2.second.error = ComputeEdgeOptimalPosition(optimal_position, it2.second, mesh);
+            ComputeEdgeOptimalPosition(optimal_position, index, mesh);
             // std::cout << "Inserting " << it2.second.v1 << "-"
             // << it2.second.v2 << " : "
             // << it2.second.error << std::endl;
-            result.insert(&it2.second);
+            result.insert(index);
             // std::cout << "---------------------" << std::endl;
         }
     }
 }
 
-void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, Edge &edge, Mesh *mesh, vec4<double> new_position)
+void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, EdgeIndex &edge, Mesh *mesh, vec4<double> new_position)
 {
     unsigned int neighbour_vertex1;
     unsigned int neighbour_vertex2;
@@ -90,7 +126,7 @@ void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, Edge &edge, Mesh *me
     mesh->vertices[edge.v1].adjacentTriangles.insert(it);
 }
 
-void QEMSimplifier::UpdateAdjacentVertices(Edge &edge, Mesh *mesh, std::set<Edge *, CompareEdgePtr> &sortedEdge)
+void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set<EdgeIndex> &sortedEdge)
 {
     // Remove edge connected to v1 from the set to recompute them later
     for (auto &adj_vertex : mesh->vertices[edge.v1].adjacentVertices) {
@@ -102,12 +138,13 @@ void QEMSimplifier::UpdateAdjacentVertices(Edge &edge, Mesh *mesh, std::set<Edge
                 continue;
             }
 
-            Edge *adj_edge = &mesh->edgesMap[v1][v2];
-            auto it = sortedEdge.find(adj_edge);
+            EdgeIndex index(v1, v2);
+            auto it = sortedEdge.find(index);
             if (it != sortedEdge.end()) {
                 sortedEdge.erase(it);
             } else {
-                // adj_edge->isValid = false;
+                mesh->edgesMap[v1][v2].isValid = false;
+                std::cout << "Setting " << v1 << "-" << v2 << " as inactive" << std::endl;
             }
         }
     }
@@ -127,13 +164,14 @@ void QEMSimplifier::UpdateAdjacentVertices(Edge &edge, Mesh *mesh, std::set<Edge
                 continue;
             }
 
-            Edge *adj_edge = &mesh->edgesMap[v1][v2];
-            auto it = sortedEdge.find(adj_edge);
+            EdgeIndex index(v1, v2);
+            auto it = sortedEdge.find(index);
             if (it != sortedEdge.end()) {
                 sortedEdge.erase(it);
                 mesh->edgesMap[v1].erase(v2);
             } else {
-                // adj_edge->isValid = false;
+                mesh->edgesMap[v1][v2].isValid = false;
+                std::cout << "Setting " << v1 << "-" << v2 << " as inactive" << std::endl;
             }
         }
     }
@@ -146,12 +184,11 @@ void QEMSimplifier::UpdateAdjacentVertices(Edge &edge, Mesh *mesh, std::set<Edge
 
             // Insert those new edges in the set and in the map if they didn't exist before
             AddEdge(mesh, v1, v2);
-            Edge *new_edge = &mesh->edgesMap[v1][v2];
-            std::cout << "Edge " << new_edge->v1 << "-" << new_edge->v2 << " : " << std::endl;
-            new_edge->isValid = true;
+            EdgeIndex index(v1, v2);
+            // std::cout << "Edge " << index.v1 << "-" << index.v2 << " : " << std::endl;
             vec4<double> optimal_position;
-            new_edge->error = ComputeEdgeOptimalPosition(optimal_position, *new_edge, mesh);
-            sortedEdge.insert(new_edge);
+            ComputeEdgeOptimalPosition(optimal_position, index, mesh);
+            sortedEdge.insert(index);
         }
     }
 }

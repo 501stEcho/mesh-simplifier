@@ -1,7 +1,7 @@
 #include "Tools.hpp"
 
 // Computes the optimal position and returns the error
-double ComputeEdgeOptimalPosition(vec4<double> &optimal_position, Edge &edge, Mesh *mesh)
+void ComputeEdgeOptimalPosition(vec4<double> &optimal_position, EdgeIndex &edge, Mesh *mesh)
 {
     unsigned int v1 = edge.v1;
     unsigned int v2 = edge.v2;
@@ -13,12 +13,13 @@ double ComputeEdgeOptimalPosition(vec4<double> &optimal_position, Edge &edge, Me
     temp_position[3][3] = 1;
     mat4<double> inverse;
 
+    std::cout << temp_position << std::endl;
     double det = temp_position.getDeterminant();
     if (fabs(det) >= 1e-6 && temp_position.getInverse(inverse)) {
-        // std::cout << "Invertible" << std::endl;
-        // std::cout << inverse << std::endl;
+        std::cout << v1 << "-" << v2 << " invertible" << std::endl;
         optimal_position = inverse * vec4<double>(0,0,0,1);
     } else {
+        std::cout << v1 << "-" << v2 << " not invertible" << std::endl;
         optimal_position = vec4<double>(mesh->vertices[v1].coordinates ,1);
         // vec4<double> vertex_1 = vec4<double>(mesh->vertices[v1].coordinates, 1);
         // vec4<double> vertex_2 = vec4<double>(mesh->vertices[v2].coordinates, 1);
@@ -54,9 +55,8 @@ double ComputeEdgeOptimalPosition(vec4<double> &optimal_position, Edge &edge, Me
         //     " " << delta.x << std::endl;
         // optimal_position = vertex_1 + result_delta * delta;
     }
-    double error = (optimal_position * quadric).dot(optimal_position);
-    std::cout << error << std::endl;
-    return error;
+    mesh->edgesMap[v1][v2].error = (optimal_position * quadric).dot(optimal_position);
+    // std::cout << mesh->edgesMap[v1][v2].error << std::endl;
 }
 
 void ComputePlaneEquation(std::vector<VertexData> &vertexArray, TriangleData &triangle)
@@ -110,9 +110,6 @@ void ComputeVertexMatrix(unsigned int vertexIndex, Mesh *mesh, bool recomputePla
             vertex.matrix[3][3] += triangle.plane.w * triangle.plane.w;
         }
     }
-
-    if (vertexIndex == 48866 || vertexIndex == 48867)
-        std::cout << "######################" << std::endl;
 }
 
 bool AddEdge(Mesh *mesh, unsigned int v1, unsigned int v2)
@@ -121,10 +118,10 @@ bool AddEdge(Mesh *mesh, unsigned int v1, unsigned int v2)
     unsigned int edge_v2 = std::max(v1, v2);
 
     if (mesh->edgesMap.find(edge_v1) == mesh->edgesMap.end())
-        mesh->edgesMap[edge_v1] = std::unordered_map<unsigned int, Edge>();
+        mesh->edgesMap[edge_v1] = std::unordered_map<unsigned int, EdgeData>();
     
     if (mesh->edgesMap[edge_v1].find(edge_v2) == mesh->edgesMap[edge_v1].end()) {
-        mesh->edgesMap[edge_v1][edge_v2] = Edge(edge_v1, edge_v2);
+        mesh->edgesMap[edge_v1][edge_v2] = EdgeData();
         mesh->edgeNb++;
         return true;
     }

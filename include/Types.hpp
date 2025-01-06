@@ -207,7 +207,7 @@ struct mat4
         data[3][3] = p;
     }
 
-    mat4(mat4<T> &other)
+    mat4(const mat4<T> &other)
     {
         for (unsigned int i = 0; i < 4; i++) {
             for (unsigned int j = 0; j < 4; j++)
@@ -283,22 +283,6 @@ struct mat4
         return result;
     }
 
-    void getCofactor(mat3<T> &temp, int p, int q)
-    {
-        int row = 0, col = 0;
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                if (i != p && j != q) {
-                    temp[row][col++] = data[i][j];
-                    if (col == 3) {
-                        col = 0;
-                        row++;
-                    }
-                }
-            }
-        }
-    }
-
     void getTranspose(mat4<T> &transpose)
     {
         for(size_t i = 0; i < 4; i++) {
@@ -322,21 +306,6 @@ struct mat4
           - data[0][3] * (data[1][0] * (data[2][1] * data[3][2] - data[2][2] * data[3][1])
                           - data[1][1] * (data[2][0] * data[3][2] - data[2][2] * data[3][0])
                           + data[1][2] * (data[2][0] * data[3][1] - data[2][1] * data[3][0]));
-    }
-
-    void adjugate(mat4<T> &adj)
-    {
-        mat3<double> temp;
-        int sign;
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                getCofactor(temp, i, j);
-
-                sign = ((i + j) % 2 == 0) ? 1 : -1;
-                adj[j][i] = sign * temp.getDeterminant();
-            }
-        }
     }
 
     bool getInverse(mat4<T> &inverse)
@@ -473,23 +442,29 @@ struct VertexData
     bool isValid = true;
 };
 
-struct Edge
+struct EdgeIndex
 {
-    Edge() = default;
-    Edge(unsigned int vertex_1, unsigned int vertex_2) : v1(vertex_1), v2(vertex_2), error(0) {};
+    EdgeIndex() = default;
+    EdgeIndex(unsigned int vertex_1, unsigned int vertex_2) : v1(vertex_1), v2(vertex_2) {};
     unsigned int v1;
     unsigned int v2;
+    bool isValid = true;
+
+    bool operator<(const EdgeIndex& other) const;
+};
+
+struct EdgeData
+{
+    EdgeData() = default;
+    EdgeData(double err) : error(err) {};
     double error;
     bool isValid = true;
 
-    bool operator<(const Edge& other) const {
+    bool operator<(const EdgeData& other) const {
         const double epsilon = 1e-9;
         if (std::fabs(error - other.error) > epsilon)
             return error < other.error;
-
-        if (v1 != other.v1)
-            return v1 < other.v1;
-        return v2 < other.v2;
+        return false;
     }
 };
 
@@ -513,6 +488,16 @@ struct Mesh
         edgeNb = 0;
     }
 
+    static Mesh *getSingleInstance()
+    {
+        static Mesh *ptr;
+
+        if (!ptr)
+            ptr = new Mesh();
+        
+        return ptr;
+    }
+
     // counts
     unsigned int vertexNb;
     unsigned int triangleNb;
@@ -522,7 +507,7 @@ struct Mesh
     Bitmap activeVertices;
     std::vector<TriangleData> triangles;
     Bitmap activeTriangles;
-    std::unordered_map<unsigned int, std::unordered_map<unsigned int, Edge>> edgesMap;
+    std::unordered_map<unsigned int, std::unordered_map<unsigned int, EdgeData>> edgesMap;
 
     // Buffer size
     unsigned int verticesBufferSize;

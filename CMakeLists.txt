@@ -10,6 +10,7 @@ set(SRC_DIR ./src)
 # Source files
 
 set(SOURCES
+${INCLUDE_DIR}/Types.cpp
     ${SRC_DIR}/Parser.cpp
     ${SRC_DIR}/QEMSimplifier.cpp
     ${SRC_DIR}/Writer.cpp
