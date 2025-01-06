@@ -7,6 +7,7 @@
 #include <memory>
 #include <cmath>
 #include <unordered_set>
+#include <Eigen/Dense>
 #include "Bitmap.hpp"
 #include <iomanip>
 
@@ -31,6 +32,11 @@ struct vec3
     vec3<T> operator-(vec3<T> &other)
     {
         return vec3<T>(x - other.x, y - other.y, z - other.z);
+    }
+
+    vec3<T> operator+(vec3<T> &other)
+    {
+        return vec3<T>(x + other.x, y + other.y, z + other.z);
     }
 
     vec3<T> operator*(T &&coef)
@@ -128,6 +134,13 @@ struct vec4
 
 template <typename T>
 std::ostream &operator<<(std::ostream &stream, vec4<T> &vector)
+{
+    stream << vector.x << " " << vector.y << " " << vector.z << " " << vector.w << std::endl;
+    return stream;
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, vec4<T> &&vector)
 {
     stream << vector.x << " " << vector.y << " " << vector.z << " " << vector.w << std::endl;
     return stream;
@@ -424,6 +437,8 @@ struct VertexData
     {
         adjacentTriangles = std::unordered_set<unsigned int>();
         adjacentVertices = std::unordered_set<unsigned int>();
+        matrix = Eigen::Matrix4d();
+        coordinates = Eigen::Vector3d();
     }
 
     VertexData(const VertexData &other)
@@ -437,8 +452,9 @@ struct VertexData
 
     std::unordered_set<unsigned int> adjacentTriangles;
     std::unordered_set<unsigned int> adjacentVertices;
-    mat4<double> matrix;
-    vec3<double> coordinates;
+    Eigen::Matrix4d matrix;
+    // mat4<double> matrix;
+    Eigen::Vector3d coordinates;
     bool isValid = true;
 };
 
@@ -473,7 +489,7 @@ struct EdgeData
 struct TriangleData
 {
     vec3<unsigned int> verticesIndex;
-    vec4<double> plane;
+    Eigen::Vector4d plane;
     bool isValid = true;
 };
 

@@ -9,7 +9,7 @@ class QEMSimplifier {
     
     protected:
         static void GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result);
-        static void UpdateAdjacentTriangle(unsigned int triangleIndex, EdgeIndex &edge, Mesh *mesh, vec4<double> new_position);
+        static void UpdateAdjacentTriangle(unsigned int triangleIndex, EdgeIndex &edge, Mesh *mesh);
         static void UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set<EdgeIndex> &sortedEdges);
         static void DeleteTriangle(unsigned int triangleIndex, Mesh *mesh);
         static void DeleteVertex(unsigned int vertexIndex, Mesh *mesh);

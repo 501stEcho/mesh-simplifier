@@ -88,15 +88,16 @@ void OBJLoader::FillMeshData(Mesh *LoadedMesh, std::ifstream &file)
 void OBJLoader::ParseVertexLine(std::istringstream &lineStream, Mesh *result, unsigned int &availableVertexIndex)
 {
     unsigned int i = 0;
+    double x, y, z;
 
-    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.x))
+    if (!(lineStream >> x))
         throw InvalidLineFormatException("");
-    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.y))
+    if (!(lineStream >> y))
         throw InvalidLineFormatException("");
-    if (!(lineStream >> result->vertices[availableVertexIndex].coordinates.z))
+    if (!(lineStream >> z))
         throw InvalidLineFormatException("");
 
-    // std::cout << result->vertices[availableVertexIndex].coordinates.x << " " << result->vertices[availableVertexIndex].coordinates.y << " " << result->vertices[availableVertexIndex].coordinates.z << std::endl;
+    result->vertices[availableVertexIndex].coordinates = Eigen::Vector3d(x, y, z);
     result->vertices[availableVertexIndex++].isValid = true;
 }
 

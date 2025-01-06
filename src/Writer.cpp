@@ -11,7 +11,7 @@ void OBJWriter::SaveMesh(std::string path, Mesh *mesh)
     for (unsigned int i = 0; i < mesh->verticesBufferSize && nextVertexId < mesh->vertexNb + 1; i++) {
         if (mesh->activeVertices.isActive(i)) {
             VertexData &vertex = mesh->vertices[i];
-            outputFile << "v  " << vertex.coordinates.x << " " << vertex.coordinates.y << " " << vertex.coordinates.z << "\n";
+            outputFile << "v  " << vertex.coordinates(0) << " " << vertex.coordinates(1) << " " << vertex.coordinates(2) << "\n";
             newVerticesIndex[i] = nextVertexId++;
         }
     }

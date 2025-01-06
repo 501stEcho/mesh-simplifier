@@ -14,7 +14,9 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
         sortedEdges.erase(sortedEdges.begin());
 
         if (!index.isValid || index.v1 == index.v2 || !mesh->activeVertices.isActive(index.v1)
-            || !mesh->activeVertices.isActive(index.v2) || mesh->edgesMap[index.v1].find(index.v2) == mesh->edgesMap[index.v1].end()) {
+            || !mesh->activeVertices.isActive(index.v2)
+            || mesh->edgesMap[index.v1].find(index.v2) == mesh->edgesMap[index.v1].end()
+            || !mesh->edgesMap[index.v1][index.v2].isValid) {
             std::cerr << "Could not find " << index.v1 << "-" << index.v2 << std::endl;
             continue;
         }
@@ -23,16 +25,14 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
         std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << " (" << data.error << ")" << std::endl;
 
         // Assign new position to vertex 1
-        vec4<double> optimal_position;
+        Eigen::Vector4d optimal_position;
         ComputeEdgeOptimalPosition(optimal_position, index, mesh);
-        mesh->vertices[index.v1].coordinates.x = optimal_position.x;
-        mesh->vertices[index.v1].coordinates.y = optimal_position.y;
-        mesh->vertices[index.v1].coordinates.z = optimal_position.z;
+        mesh->vertices[index.v1].coordinates = optimal_position.head<3>();
 
         // Replace v2 occurences in adjacent triangles by v1
         for (auto &it : mesh->vertices[index.v2].adjacentTriangles) {
             if (mesh->activeTriangles.isActive(it))
-               UpdateAdjacentTriangle(it, index, mesh, optimal_position);
+               UpdateAdjacentTriangle(it, index, mesh);
         }
 
         // Add nodes between v1 and v2's adjacent vertices
@@ -43,44 +43,6 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
         mesh->edgesMap[index.v1].erase(index.v2);
         iteration++;
     }
-
-    // for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1;) {
-    //     unsigned int v1_parent = FindLatestParentVertex(sortedEdges.begin()->v1, parent);
-    //     unsigned int v2_parent = FindLatestParentVertex(sortedEdges.begin()->v2, parent);
-    //     EdgeIndex index = *sortedEdges.begin();
-    //     EdgeIndex index_parent = EdgeIndex(v1_parent, v2_parent);
-    //     sortedEdges.erase(sortedEdges.begin());
-
-    //     if (!index.isValid || v1_parent == v2_parent || !mesh->activeVertices.isActive(v1_parent) || !mesh->activeVertices.isActive(v2_parent))
-    //         continue;
-
-    //     unsigned int v1 = std::min(v1_parent, v2_parent);
-    //     unsigned int v2 = std::max(v1_parent, v2_parent);
-    //     EdgeData &data = mesh->edgesMap[v1][v2];
-    //     std::cout << "Iteration " << iteration << " : " << v1 << "-" << v2 << " (" << data.error << ")" << std::endl;
-
-    //     if (mesh->edgesMap[v1].find(v2) == mesh->edgesMap[v1].end())
-    //         std::cerr << "Could not find " << v1 << "-" << v2 << std::endl;
-    
-    //     mat4<double> quadric = mesh->vertices[v1].matrix + mesh->vertices[v2].matrix;
-    //     vec4<double> optimal_position;
-    //     ComputeEdgeOptimalPosition(optimal_position, index_parent, mesh);
-
-    //     mesh->vertices[v1].coordinates.x = optimal_position.x;
-    //     mesh->vertices[v1].coordinates.y = optimal_position.y;
-    //     mesh->vertices[v1].coordinates.z = optimal_position.z;
-
-    //     for (auto &it : mesh->vertices[v2].adjacentTriangles) {
-    //         if (mesh->activeTriangles.isActive(it))
-    //            UpdateAdjacentTriangle(it, index_parent, mesh, optimal_position);
-    //     }
-
-    //     UpdateAdjacentVertices(index_parent, mesh, sortedEdges);
-    //     DeleteVertex(v2 , mesh);
-    //     mesh->edgesMap[v1].erase(v2);
-    //     parent[v2] = v1;
-    //     iteration++;
-    // }
 }
  
 void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
@@ -88,8 +50,9 @@ void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
     for (auto &it : mesh->edgesMap) {
         for (auto &it2 : it.second) {
             EdgeIndex index(it.first, it2.first);
-            mat4<double> quadric = mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix;
-            vec4<double> optimal_position;
+            Eigen::Matrix4d quadric(mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix);
+            // mat4<double> quadric = mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix;
+            Eigen::Vector4d optimal_position;
             ComputeEdgeOptimalPosition(optimal_position, index, mesh);
             // std::cout << "Inserting " << it2.second.v1 << "-"
             // << it2.second.v2 << " : "
@@ -100,7 +63,7 @@ void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
     }
 }
 
-void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, EdgeIndex &edge, Mesh *mesh, vec4<double> new_position)
+void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, EdgeIndex &edge, Mesh *mesh)
 {
     unsigned int neighbour_vertex1;
     unsigned int neighbour_vertex2;
@@ -186,7 +149,7 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
             AddEdge(mesh, v1, v2);
             EdgeIndex index(v1, v2);
             // std::cout << "Edge " << index.v1 << "-" << index.v2 << " : " << std::endl;
-            vec4<double> optimal_position;
+            Eigen::Vector4d optimal_position;
             ComputeEdgeOptimalPosition(optimal_position, index, mesh);
             sortedEdge.insert(index);
         }
