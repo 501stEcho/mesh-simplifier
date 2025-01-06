@@ -211,7 +211,7 @@ struct mat4
     {
         for (unsigned int i = 0; i < 4; i++) {
             for (unsigned int j = 0; j < 4; j++)
-                data[i][j] = other[i][j];
+                data[i][j] = other.data[i][j];
         }
     }
 

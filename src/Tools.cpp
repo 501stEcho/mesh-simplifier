@@ -64,7 +64,7 @@ void ComputePlaneEquation(std::vector<VertexData> &vertexArray, TriangleData &tr
     vec3<double> u = vertexArray[triangle.verticesIndex.x].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
     vec3<double> v = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
 
-    vec3<double> planeNormal = u.cross_product(v) * -1.0;
+    vec3<double> planeNormal = u.cross_product(v);
     if (planeNormal.length_squared() < 1e-9) {
         triangle.plane = vec4<double>(0, 0, 0, 0);
         return;
