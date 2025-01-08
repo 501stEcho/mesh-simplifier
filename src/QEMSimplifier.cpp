@@ -9,20 +9,22 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
 {
     GetSortedEdgeQueue(mesh, sortedEdges);
 
-    for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1;) {
+    for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1 && sortedEdges.size() > 0;) {
         EdgeIndex index = *sortedEdges.begin();
         sortedEdges.erase(sortedEdges.begin());
+        std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << std::endl;
 
         if (!index.isValid || index.v1 == index.v2 || !mesh->activeVertices.isActive(index.v1)
             || !mesh->activeVertices.isActive(index.v2)
             || mesh->edgesMap[index.v1].find(index.v2) == mesh->edgesMap[index.v1].end()
             || !mesh->edgesMap[index.v1][index.v2].isValid) {
-            std::cerr << "Could not find " << index.v1 << "-" << index.v2 << std::endl;
+            std::cout << "Skipping" << std::endl;
             continue;
         }
 
         EdgeData &data = mesh->edgesMap[index.v1][index.v2];
-        std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << " (" << data.error << ")" << std::endl;
+
+        std::cout << "Error : " << data.error << std::endl;
 
         // Assign new position to vertex 1
         Eigen::Vector4d optimal_position;
@@ -51,23 +53,16 @@ void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
         for (auto &it2 : it.second) {
             EdgeIndex index(it.first, it2.first);
             Eigen::Matrix4d quadric(mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix);
-            // mat4<double> quadric = mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix;
             Eigen::Vector4d optimal_position;
             ComputeEdgeOptimalPosition(optimal_position, index, mesh);
-            // std::cout << "Inserting " << it2.second.v1 << "-"
-            // << it2.second.v2 << " : "
-            // << it2.second.error << std::endl;
+            std::cout << "Inserting " << it.first << "-" << it2.first << " : " << mesh->edgesMap[it.first][it2.first].error << std::endl;
             result.insert(index);
-            // std::cout << "---------------------" << std::endl;
         }
     }
 }
 
 void QEMSimplifier::UpdateAdjacentTriangle(unsigned int it, EdgeIndex &edge, Mesh *mesh)
 {
-    unsigned int neighbour_vertex1;
-    unsigned int neighbour_vertex2;
-
     TriangleData &triangle = mesh->triangles[it];
     if (triangle.verticesIndex.x == edge.v2) {
         if (triangle.verticesIndex.y == edge.v1 || triangle.verticesIndex.z == edge.v1)
@@ -107,7 +102,6 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
                 sortedEdge.erase(it);
             } else {
                 mesh->edgesMap[v1][v2].isValid = false;
-                std::cout << "Setting " << v1 << "-" << v2 << " as inactive" << std::endl;
             }
         }
     }
@@ -134,13 +128,12 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
                 mesh->edgesMap[v1].erase(v2);
             } else {
                 mesh->edgesMap[v1][v2].isValid = false;
-                std::cout << "Setting " << v1 << "-" << v2 << " as inactive" << std::endl;
             }
         }
     }
 
     for (auto &adj_vertex : mesh->vertices[edge.v1].adjacentVertices) {
-        if (mesh->activeVertices.isActive(adj_vertex)) {
+        if (mesh->activeVertices.isActive(adj_vertex) && adj_vertex != edge.v2) {
             ComputeVertexMatrix(adj_vertex, mesh, true);
             unsigned int v1 = std::min(edge.v1, adj_vertex);
             unsigned int v2 = std::max(edge.v1, adj_vertex);
@@ -148,9 +141,9 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
             // Insert those new edges in the set and in the map if they didn't exist before
             AddEdge(mesh, v1, v2);
             EdgeIndex index(v1, v2);
-            // std::cout << "Edge " << index.v1 << "-" << index.v2 << " : " << std::endl;
             Eigen::Vector4d optimal_position;
             ComputeEdgeOptimalPosition(optimal_position, index, mesh);
+            std::cout << "  Inserting " << v1 << "-" << v2 << " : " << mesh->edgesMap[v1][v2].error << std::endl;
             sortedEdge.insert(index);
         }
     }

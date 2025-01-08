@@ -1,5 +1,16 @@
 #include "Tools.hpp"
 
+void compare_optimal_position(Eigen::Vector4d &test_position, Eigen::Matrix4d quadric,
+    double &current_min, Eigen::Vector4d &optimal_position)
+{
+    double test_error = test_position.transpose() * quadric * test_position;
+    if (test_error < current_min)
+    {
+        optimal_position = test_position;
+        current_min = test_error;
+    }
+}
+
 // Computes the optimal position and returns the error
 void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &edge, Mesh *mesh)
 {
@@ -8,15 +19,11 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
     Eigen::Matrix4d quadric = mesh->vertices[v1].matrix + mesh->vertices[v2].matrix;
     Eigen::Matrix4d temp_position(quadric);
 
-    for (unsigned int j = 0; j < 3; j++)
-        temp_position(3, j) = 0;
-    temp_position(3, 3) = 1;
+    temp_position.row(3) << 0, 0, 0, 1;
     Eigen::Matrix4d inverse = temp_position.inverse();
 
-    // std::cout << mesh->vertices[v1].matrix << std::endl;
     double det = temp_position.determinant();
     if (fabs(det) >= 1e-6) {
-        // std::cout << v1 << "-" << v2 << " invertible" << std::endl;
         optimal_position = inverse * Eigen::Vector4d(0,0,0,1);
     } else {
         // std::cout << v1 << "-" << v2 << " not invertible" << std::endl;
@@ -34,9 +41,7 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
         double discriminant = B * B - 4 * A * C;
         double result_delta = -1;
 
-        if (A == 0 || discriminant < 0) {
-            result_delta = 0.5;
-        } else {
+        if (!(A == 0 || discriminant < 0)) {
             double t1 = (-B - sqrt(discriminant)) / (2 * A);
             double t2 = (-B + sqrt(discriminant)) / (2 * A);
 
@@ -44,34 +49,51 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
                 result_delta = t1;
             if (t2 >= 0 && t2 <= 1)
                 result_delta = t2;
-            
-            if (result_delta < 0)
-                result_delta = 0.5;
         }
-        optimal_position = vertex_1 + result_delta * delta;
+
+        if (result_delta < 0) {
+            double current_min = vertex_1.transpose() * quadric * vertex_1;
+            compare_optimal_position(vertex_2, quadric, current_min, optimal_position);
+            Eigen::Vector4d halfway = vertex_1 + 0.5 * delta;
+            compare_optimal_position(halfway, quadric, current_min, optimal_position);
+        } else {
+            optimal_position = vertex_1 + result_delta * delta;
+        }
     }
-    // std::cout << "optimal : " << optimal_position << std::endl;
+    // std::cout << "optimal " << v1 << "-" << v2 << " : " << optimal_position.transpose() << std::endl;
     mesh->edgesMap[v1][v2].error = optimal_position.transpose() * quadric * optimal_position;
-    // std::cout << "error : " << mesh->edgesMap[v1][v2].error << std::endl;
 }
 
 void ComputePlaneEquation(std::vector<VertexData> &vertexArray, TriangleData &triangle)
 {
-    Eigen::Vector3d u = vertexArray[triangle.verticesIndex.x].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
-    Eigen::Vector3d v = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
+    // Eigen::Vector3d u = vertexArray[triangle.verticesIndex.x].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
+    // Eigen::Vector3d v = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
 
-    Eigen::Vector3d planeNormal = u.cross(v);
-    if (planeNormal.isZero(1e-10)) {
+    // Eigen::Vector3d planeNormal = u.cross(v);
+    // if (planeNormal.isZero(1e-10)) {
+    //     triangle.plane = Eigen::Vector4d::Zero();
+    //     return;
+    // }
+
+    // double d = -1 * (planeNormal(0) * vertexArray[triangle.verticesIndex.x].coordinates(0)
+    //     + planeNormal(1) * vertexArray[triangle.verticesIndex.x].coordinates(1)
+    //     + planeNormal(2) * vertexArray[triangle.verticesIndex.x].coordinates(2));
+
+    // triangle.plane.head<3>() = planeNormal;
+    // triangle.plane(3) = d;
+    // triangle.plane.normalize();
+
+    Eigen::Vector3d u = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.x].coordinates;
+    Eigen::Vector3d v = vertexArray[triangle.verticesIndex.z].coordinates - vertexArray[triangle.verticesIndex.x].coordinates;
+
+    Eigen::Vector3d normal = u.cross(v);
+    if (normal.norm() < 1e-9) {
         triangle.plane = Eigen::Vector4d::Zero();
         return;
     }
 
-    double d = -1 * (planeNormal(0) * vertexArray[triangle.verticesIndex.x].coordinates(0)
-        + planeNormal(1) * vertexArray[triangle.verticesIndex.x].coordinates(1)
-        + planeNormal(2) * vertexArray[triangle.verticesIndex.x].coordinates(2));
-
-    triangle.plane.head<3>() = planeNormal;
-    triangle.plane(3) = d;
+    double d = -normal.dot(vertexArray[triangle.verticesIndex.x].coordinates);
+    triangle.plane = Eigen::Vector4d(normal[0], normal[1], normal[2], d);
     triangle.plane.normalize();
 }
 
@@ -87,25 +109,8 @@ void ComputeVertexMatrix(unsigned int vertexIndex, Mesh *mesh, bool recomputePla
             if (recomputePlaneEquation)
                 ComputePlaneEquation(mesh->vertices, mesh->triangles[it]);
             TriangleData &triangle = mesh->triangles[it];
-            vertex.matrix(0, 0) += triangle.plane(0) * triangle.plane(0);
-            vertex.matrix(0, 1) += triangle.plane(0) * triangle.plane(1);
-            vertex.matrix(0, 2) += triangle.plane(0) * triangle.plane(2);
-            vertex.matrix(0, 3) += triangle.plane(0) * triangle.plane(3);
-
-            vertex.matrix(1, 0) += triangle.plane(1) * triangle.plane(0);
-            vertex.matrix(1, 1) += triangle.plane(1) * triangle.plane(1);
-            vertex.matrix(1, 2) += triangle.plane(1) * triangle.plane(2);
-            vertex.matrix(1, 3) += triangle.plane(1) * triangle.plane(3);
-
-            vertex.matrix(2, 0) += triangle.plane(2) * triangle.plane(0);
-            vertex.matrix(2, 1) += triangle.plane(2) * triangle.plane(1);
-            vertex.matrix(2, 2) += triangle.plane(2) * triangle.plane(2);
-            vertex.matrix(2, 3) += triangle.plane(2) * triangle.plane(3);
-
-            vertex.matrix(3, 0) += triangle.plane(3) * triangle.plane(0);
-            vertex.matrix(3, 1) += triangle.plane(3) * triangle.plane(1);
-            vertex.matrix(3, 2) += triangle.plane(3) * triangle.plane(2);
-            vertex.matrix(3, 3) += triangle.plane(3) * triangle.plane(3);
+            Eigen::Matrix4d triangleQuadric = triangle.plane * triangle.plane.transpose();
+            vertex.matrix += triangleQuadric;
         }
     }
 }

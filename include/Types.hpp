@@ -437,17 +437,8 @@ struct VertexData
     {
         adjacentTriangles = std::unordered_set<unsigned int>();
         adjacentVertices = std::unordered_set<unsigned int>();
-        matrix = Eigen::Matrix4d();
+        matrix = Eigen::Matrix4d::Zero();
         coordinates = Eigen::Vector3d();
-    }
-
-    VertexData(const VertexData &other)
-    {
-        adjacentTriangles = other.adjacentTriangles;
-        adjacentVertices = other.adjacentVertices;
-        matrix = other.matrix;
-        coordinates = other.coordinates;
-        isValid = other.isValid;
     }
 
     std::unordered_set<unsigned int> adjacentTriangles;
