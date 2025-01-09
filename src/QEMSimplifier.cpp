@@ -1,13 +1,23 @@
 #include "QEMSimplifier.hpp"
 #include "Tools.hpp"
 #include <iomanip>
+#include "thread_logic.hpp"
+#include "thread_logic.hpp"
 
 std::set<EdgeIndex> sortedEdges;
-std::unordered_map<unsigned int, unsigned int> parent;
+std::mutex setMutex;
+std::vector<std::thread> threads;
+std::size_t numThreads;
 
 void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
 {
+    numThreads = std::thread::hardware_concurrency();
+
+    if (numThreads == 0)
+        numThreads = 4;
+
     GetSortedEdgeQueue(mesh, sortedEdges);
+    threads.clear();
 
     for (unsigned int iteration = 0; iteration < iterationsNb && mesh->vertexNb > 1 && sortedEdges.size() > 0;) {
         EdgeIndex index = *sortedEdges.begin();
@@ -46,13 +56,13 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
  
 void QEMSimplifier::GetSortedEdgeQueue(Mesh *mesh, std::set<EdgeIndex> &result)
 {
-    for (auto &it : mesh->edgesMap) {
-        for (auto &it2 : it.second) {
-            EdgeIndex index(it.first, it2.first);
-            Eigen::Matrix4d quadric(mesh->vertices[index.v1].matrix + mesh->vertices[index.v2].matrix);
-            Eigen::Vector4d optimal_position;
-            ComputeEdgeOptimalPosition(optimal_position, index, mesh);
-            result.insert(index);
+    for (unsigned int i = 0; i < numThreads; i++) {
+        threads.emplace_back(AddEdgeMapChunk, mesh, i, numThreads, std::ref(sortedEdges), std::ref(setMutex));
+    }
+
+    for (auto &it : threads) {
+        if (it.joinable()) {
+            it.join();
         }
     }
 }
@@ -95,7 +105,10 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
             EdgeIndex index(v1, v2);
             auto it = sortedEdge.find(index);
             if (it != sortedEdge.end()) {
-                sortedEdge.erase(it);
+                {
+                    std::lock_guard<std::mutex> lock(setMutex);
+                    sortedEdge.erase(it);
+                }
             } else {
                 mesh->edgesMap[v1][v2].isValid = false;
             }
@@ -120,7 +133,10 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
             EdgeIndex index(v1, v2);
             auto it = sortedEdge.find(index);
             if (it != sortedEdge.end()) {
-                sortedEdge.erase(it);
+                {
+                    std::lock_guard<std::mutex> lock(setMutex);
+                    sortedEdge.erase(it);
+                }
                 mesh->edgesMap[v1].erase(v2);
             } else {
                 mesh->edgesMap[v1][v2].isValid = false;
@@ -139,7 +155,10 @@ void QEMSimplifier::UpdateAdjacentVertices(EdgeIndex &edge, Mesh *mesh, std::set
             EdgeIndex index(v1, v2);
             Eigen::Vector4d optimal_position;
             ComputeEdgeOptimalPosition(optimal_position, index, mesh);
-            sortedEdge.insert(index);
+            {
+                std::lock_guard<std::mutex> lock(setMutex);
+                sortedEdge.insert(index);
+            }
         }
     }
 }
@@ -154,14 +173,4 @@ void QEMSimplifier::DeleteVertex(unsigned int vertexIndex, Mesh *mesh)
 {
     mesh->activeVertices.set(vertexIndex, false);
     mesh->vertexNb--;
-}
-
-unsigned int QEMSimplifier::FindLatestParentVertex(unsigned int value, std::unordered_map<unsigned int, unsigned int> &parent)
-{
-    if (parent.find(value) == parent.end())
-        return value;
-
-    if (parent[value] != value)
-        parent[value] = FindLatestParentVertex(parent[value], parent); // Path compression
-    return parent[value];
 }

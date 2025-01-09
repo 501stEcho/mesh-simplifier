@@ -19,6 +19,7 @@ ${INCLUDE_DIR}/Types.cpp
     ${SRC_DIR}/QEMSimplifier.cpp
     ${SRC_DIR}/Writer.cpp
     ${SRC_DIR}/Tools.cpp
+    ${SRC_DIR}/thread_logic.cpp
 )
 
 # Executables

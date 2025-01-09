@@ -26,7 +26,6 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
     if (fabs(det) >= 1e-6) {
         optimal_position = inverse * Eigen::Vector4d(0,0,0,1);
     } else {
-        // std::cout << v1 << "-" << v2 << " not invertible" << std::endl;
         Eigen::Vector4d vertex_1 = mesh->vertices[v1].coordinates.homogeneous();
         Eigen::Vector4d vertex_2 = mesh->vertices[v2].coordinates.homogeneous();
 
