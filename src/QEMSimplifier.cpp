@@ -31,7 +31,7 @@ void QEMSimplifier::Simplify(Mesh *mesh, unsigned int iterationsNb)
         }
 
         EdgeData &data = mesh->edgesMap[index.v1][index.v2];
-        std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << " ( " << data.error << ")" << std::endl;
+        // std::cout << "Iteration " << iteration << " : " << index.v1 << "-" << index.v2 << " ( " << data.error << ")" << std::endl;
 
         // Assign new position to vertex 1
         Eigen::Vector4d optimal_position;

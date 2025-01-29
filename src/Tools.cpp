@@ -59,29 +59,11 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
             optimal_position = vertex_1 + result_delta * delta;
         }
     }
-    // std::cout << "optimal " << v1 << "-" << v2 << " : " << optimal_position.transpose() << std::endl;
     mesh->edgesMap[v1][v2].error = optimal_position.transpose() * quadric * optimal_position;
 }
 
 void ComputePlaneEquation(std::vector<VertexData> &vertexArray, TriangleData &triangle)
 {
-    // Eigen::Vector3d u = vertexArray[triangle.verticesIndex.x].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
-    // Eigen::Vector3d v = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.z].coordinates;
-
-    // Eigen::Vector3d planeNormal = u.cross(v);
-    // if (planeNormal.isZero(1e-10)) {
-    //     triangle.plane = Eigen::Vector4d::Zero();
-    //     return;
-    // }
-
-    // double d = -1 * (planeNormal(0) * vertexArray[triangle.verticesIndex.x].coordinates(0)
-    //     + planeNormal(1) * vertexArray[triangle.verticesIndex.x].coordinates(1)
-    //     + planeNormal(2) * vertexArray[triangle.verticesIndex.x].coordinates(2));
-
-    // triangle.plane.head<3>() = planeNormal;
-    // triangle.plane(3) = d;
-    // triangle.plane.normalize();
-
     Eigen::Vector3d u = vertexArray[triangle.verticesIndex.y].coordinates - vertexArray[triangle.verticesIndex.x].coordinates;
     Eigen::Vector3d v = vertexArray[triangle.verticesIndex.z].coordinates - vertexArray[triangle.verticesIndex.x].coordinates;
 
