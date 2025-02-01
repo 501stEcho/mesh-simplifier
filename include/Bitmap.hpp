@@ -1,10 +1,3 @@
-/*
-** EPITECH PROJECT, 2024
-** GameEngine
-** File description:
-** Bitmap.hpp
-*/
-
 #pragma once
 
 #include <vector>

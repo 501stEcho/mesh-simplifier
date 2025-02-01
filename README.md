@@ -1,7 +1,4 @@
-# Computer graphics Homework 1 - Mesh simplificator
-
-**Name :** Paul Yann LABAN\
-**Student ID :** 2024400503
+# QEM Algorithm - Mesh simplifier
 
 ## Introduction
 
@@ -9,8 +6,7 @@ The goal of this project was to implement the **quadratic error mesh simplificat
 I chose to use **c++** for it because of its fast execution time.
 
 **External libraries used** : Eigen Library (for matrices and vector operations)\
-**Sources** :
-- [original research paper](https://www.cs.cmu.edu/~./garland/Papers/quadrics.pdf); To learn the concepts of this algorithm and the maths formula used.
+**Sources** : [original research paper](https://www.cs.cmu.edu/~./garland/Papers/quadrics.pdf), to learn the concepts of this algorithm and the maths formula used.
 
 ### Usage
 
@@ -108,7 +104,7 @@ void ComputeEdgeOptimalPosition(Eigen::Vector4d &optimal_position, EdgeIndex &ed
 ```
 
 Here are the main steps of this function :\
-<img src="error_computation_diagram.png"
+<img src="images/error_computation_diagram.png"
      alt="Error computation diagram"
      style="width: 700px; margin-right: 10px;" />
 
@@ -174,13 +170,13 @@ The program is divided into three main classes :
 
 <div style="display: flex; flex-direction: row; justify-content: left; align-items: center;">
 <figure style="text-align: center; margin: 0 10px;">
-<img src="sphere.png"
+<img src="images/sphere.png"
     alt="Sphere - 10,242 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Sphere - 10,242 vertices</figcaption>
 </figure>
 <figure style="text-align: center; margin: 0 10px;">
-<img src="simplified_sphere.png"
+<img src="images/simplified_sphere.png"
     alt="Sphere - 242 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Sphere - 242 vertices</figcaption>
@@ -189,13 +185,13 @@ The program is divided into three main classes :
 
 <div style="display: flex; flex-direction: row; justify-content: left; align-items: center;">
 <figure style="text-align: center; margin: 0 10px;">
-<img src="armadillo.png"
+<img src="images/armadillo.png"
     alt="Armadillo - 23,201 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Armadillo - 23,201 vertices</figcaption>
 </figure>
 <figure style="text-align: center; margin: 0 10px;">
-<img src="simplified_armadillo.png"
+<img src="images/simplified_armadillo.png"
     alt="Armadillo - 3,201 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Armadillo - 3,201 vertices</figcaption>
@@ -204,13 +200,13 @@ The program is divided into three main classes :
 
 <div style="display: flex; flex-direction: row; justify-content: left; align-items: center;">
 <figure style="text-align: center; margin: 0 10px;">
-<img src="horse.png"
+<img src="images/horse.png"
     alt="Horse - 48,485 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Horse - 48,485 vertices</figcaption>
 </figure>
 <figure style="text-align: center; margin: 0 10px;">
-<img src="simplified_horse.png"
+<img src="images/simplified_horse.png"
     alt="Horse - 3,485 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Horse - 3,485 vertices</figcaption>
@@ -219,13 +215,13 @@ The program is divided into three main classes :
 
 <div style="display: flex; flex-direction: row; justify-content: left; align-items: center;">
 <figure style="text-align: center; margin: 0 10px;">
-<img src="dragon.png"
+<img src="images/dragon.png"
     alt="Dragon - 104,855 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Dragon - 104,855 vertices</figcaption>
 </figure>
 <figure style="text-align: center; margin: 0 10px;">
-<img src="simplified_dragon.png"
+<img src="images/simplified_dragon.png"
     alt="Dragon - 4,855 vertices"
     style="width: 500px; margin-right: 10px;" />
 <figcaption>Dragon - 4,855 vertices</figcaption>
